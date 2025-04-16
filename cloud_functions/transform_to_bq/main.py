@@ -17,7 +17,7 @@ def transform_to_bq_entrypoint(request):
 
     # === Read OHLCs ===
     print("Reading OHLCs from GCS...")
-    ohlcs_blob = storage_client.bucket(bucket_name).blob(f"stock_data/ohlcs/ohlcs_{date_str}.json")
+    ohlcs_blob = storage_client.bucket(bucket_name).blob(f"stock_data/ohlc/ohlc_{date_str}.json")
     ohlcs_json = json.loads(ohlcs_blob.download_as_text())
     df_ohlcs = pd.DataFrame(ohlcs_json)
 
@@ -45,4 +45,4 @@ def transform_to_bq_entrypoint(request):
     bq_client.load_table_from_dataframe(df_ohlcs, table_ohlcs).result()
     bq_client.load_table_from_dataframe(df_news, table_news).result()
 
-    return f"Loaded OHLCs and News to BigQuery for {date_str}"
+    return f"Loaded data for {date_str} to BigQuery successfully!"
