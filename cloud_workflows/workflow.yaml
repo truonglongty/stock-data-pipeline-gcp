@@ -1,0 +1,35 @@
+main:
+  params: []
+  steps:
+    - log_start:
+        call: sys.log
+        args:
+          text: "START: stock-pipeline workflow"
+          severity: INFO
+
+    - call_crawl_function:
+        call: http.get
+        args:
+          url: https://asia-southeast1-stock-pipeline-project.cloudfunctions.net/crawl_stock_data_entrypoint
+        result: crawl_result
+
+    - call_transform_function:
+        call: http.get
+        args:
+          url: https://asia-southeast1-stock-pipeline-project.cloudfunctions.net/transform_to_bq_entrypoint
+        result: transform_result
+
+    - notify_slack:
+        call: http.post
+        args:
+          url: '${sys.get_env("SLACK_WEBHOOK_URL")}'
+          headers:
+            Content-Type: application/json
+          body:
+            text: '${"Stock pipeline completed! (Time: " + string(sys.now() + 25200) + " GMT+7)"}'
+
+    - log_end:
+        call: sys.log
+        args:
+          text: "Workflow FINISHED!!!"
+          severity: INFO
