@@ -1,0 +1,119 @@
+name: Deploy stock-pipeline to GCP
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  filter:
+    name: Detect changed folders
+    runs-on: ubuntu-latest
+    outputs:
+      crawl: ${{ steps.filter.outputs.crawl }}
+      transform: ${{ steps.filter.outputs.transform }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            crawl:
+              - 'cloud_functions/crawl_stock_data/**'
+            transform:
+              - 'cloud_functions/transform_to_bq/**'
+            workflow:
+              - 'cloud_workflows/**'
+
+  deploy-crawl:
+    name: Deploy Cloud Function - crawl
+    needs: filter
+    if: needs.filter.outputs.crawl == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: stock-pipeline-project
+          install_components: gcloud
+
+      - name: Deploy crawl_stock_data_entrypoint
+        run: |
+          gcloud functions deploy crawl_stock_data_entrypoint \
+            --runtime python310 \
+            --region asia-southeast1 \
+            --trigger-http \
+            --entry-point crawl_stock_data_entrypoint \
+            --source=cloud_functions/crawl_stock_data \
+            --set-env-vars POLYGON_API_KEY=${{ secrets.POLYGON_API_KEY }} \
+            --set-env-vars ALPHAVANTAGE_API_KEY=${{ secrets.ALPHAVANTAGE_API_KEY }} \
+            --set-env-vars BUCKET_NAME=stock-pipeline-bucket \
+            --allow-unauthenticated
+
+  deploy-transform:
+    name: Deploy Cloud Function - transform
+    needs: filter
+    if: needs.filter.outputs.transform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: stock-pipeline-project
+          install_components: gcloud
+
+      - name: Deploy transform_to_bq_entrypoint
+        run: |
+          gcloud functions deploy transform_to_bq_entrypoint \
+            --runtime python310 \
+            --region asia-southeast1 \
+            --trigger-http \
+            --entry-point transform_to_bq_entrypoint \
+            --source=cloud_functions/transform_to_bq \
+            --set-env-vars BUCKET_NAME=stock-pipeline-bucket \
+            --set-env-vars BQ_DATASET=stock_dataset \
+            --allow-unauthenticated \
+            --memory=512MB
+
+  deploy-workflow:
+    name: Deploy Workflow
+    needs: filter
+    if: needs.filter.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: stock-pipeline-project
+          install_components: gcloud
+
+      - name: Deploy stock_pipeline_workflow
+        run: |
+          gcloud workflows deploy stock_pipeline_workflow \
+            --source=cloud_workflows/workflow.yaml \
+            --location=asia-southeast1 \
+            --set-env-vars SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
