@@ -12,11 +12,6 @@ main:
         args:
           url: https://asia-southeast1-stock-pipeline-project.cloudfunctions.net/crawl_stock_data_entrypoint
         result: crawl_result
-    
-    - delay_wait_for_crawl:
-        call: sys.sleep
-        args:
-          seconds: 30 
 
     - call_transform_function:
         call: http.get
