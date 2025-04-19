@@ -20,7 +20,7 @@ def crawl_news():
     params = {
         "function": "NEWS_SENTIMENT",
         "sort": "LATEST",
-        "limit": "100",
+        "limit": "1000",
         "apikey": ALPHAVANTAGE_API_KEY
     }
 

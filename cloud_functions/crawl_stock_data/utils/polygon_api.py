@@ -23,7 +23,7 @@ def crawl_ohlcs():
     try:
         r = requests.get(url, params=params, timeout=10)
         r.raise_for_status()
-        data = r.json().get("results", [])[:1000]
+        data = r.json().get("results", [])
         if not data:
             print(f"No OHLCs data for {date_str}")
             return
